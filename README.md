@@ -16,7 +16,7 @@ Um aplicativo web single-page para gerenciamento financeiro pessoal, desenvolvid
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/gerenciador-financeiro.git
+git clone https://github.com/rodrigocardosopires/gerenciador-financeiro.git
 cd gerenciador-financeiro
 ```
 
