@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Termos de Uso - Gerenciador Financeiro">
+  <meta name="theme-color" content="#f8fafc">
+  <meta name="color-scheme" content="light dark">
+  <title>Termos de Uso - Gerenciador Financeiro</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <style>
+    .legal-page {
+      min-height: 100vh;
+      padding: var(--spacing-xl) var(--spacing-md);
+    }
+    
+    .legal-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--color-bg-card);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+    }
+    
+    .legal-header {
+      background: var(--color-primary-gradient);
+      padding: var(--spacing-2xl);
+      text-align: center;
+      position: relative;
+    }
+    
+    .legal-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.1) 0%, transparent 50%);
+    }
+    
+    .legal-header__icon {
+      font-size: 3rem;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .legal-header__title {
+      font-size: var(--font-size-3xl);
+      font-weight: 700;
+      color: white;
+      margin-bottom: var(--spacing-sm);
+      position: relative;
+    }
+    
+    .legal-header__subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: var(--font-size-base);
+      position: relative;
+    }
+    
+    .legal-content {
+      padding: var(--spacing-2xl);
+    }
+    
+    .legal-section {
+      margin-bottom: var(--spacing-xl);
+    }
+    
+    .legal-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .legal-section__title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .legal-section__number {
+      background: var(--color-primary-gradient);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    
+    .legal-section__content {
+      color: var(--color-text-secondary);
+      line-height: 1.8;
+    }
+    
+    .legal-section__content p {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .legal-section__content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .legal-section__content ul {
+      margin: var(--spacing-md) 0;
+      padding-left: var(--spacing-xl);
+    }
+    
+    .legal-section__content li {
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .legal-section__content strong {
+      color: var(--color-text-primary);
+    }
+    
+    .legal-footer {
+      background: var(--color-bg-card-hover);
+      padding: var(--spacing-xl) var(--spacing-2xl);
+      border-top: 1px solid var(--color-border-light);
+      text-align: center;
+    }
+    
+    .legal-footer__date {
+      color: var(--color-text-muted);
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .legal-footer__actions {
+      display: flex;
+      gap: var(--spacing-md);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: 500;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      transition: all var(--transition-fast);
+      border: 1px solid var(--color-border);
+      background: var(--color-bg-card);
+    }
+    
+    .back-link:hover {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    
+    .highlight-box {
+      background: var(--color-info-light);
+      border: 1px solid var(--color-info);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      margin: var(--spacing-md) 0;
+    }
+    
+    .highlight-box--warning {
+      background: var(--color-warning-light);
+      border-color: var(--color-warning);
+    }
+    
+    .theme-toggle--legal {
+      position: fixed;
+      top: var(--spacing-lg);
+      right: var(--spacing-lg);
+      z-index: 100;
+    }
+    
+    @media (max-width: 768px) {
+      .legal-page {
+        padding: var(--spacing-md);
+      }
+      
+      .legal-header {
+        padding: var(--spacing-xl);
+      }
+      
+      .legal-header__title {
+        font-size: var(--font-size-2xl);
+      }
+      
+      .legal-content {
+        padding: var(--spacing-lg);
+      }
+      
+      .legal-footer {
+        padding: var(--spacing-lg);
+      }
+    }
+  </style>
+</head>
+<body class="legal-page">
+  <!-- Theme Toggle -->
+  <button class="theme-toggle theme-toggle--legal" id="theme-toggle" aria-label="Alternar tema">
+    <span class="theme-toggle__track"></span>
+    <span class="theme-toggle__thumb">
+      <span class="theme-toggle__icon theme-toggle__icon--sun">☀️</span>
+      <span class="theme-toggle__icon theme-toggle__icon--moon">🌙</span>
+    </span>
+  </button>
+
+  <div class="legal-container">
+    <!-- Header -->
+    <header class="legal-header">
+      <div class="legal-header__icon">📜</div>
+      <h1 class="legal-header__title">Termos de Uso</h1>
+      <p class="legal-header__subtitle">Gerenciador Financeiro</p>
+    </header>
+
+    <!-- Content -->
+    <main class="legal-content">
+      <!-- Introdução -->
+      <section class="legal-section">
+        <p class="legal-section__content">
+          Bem-vindo ao <strong>Gerenciador Financeiro</strong>! Ao utilizar nosso aplicativo, você concorda com os termos e condições descritos abaixo. Por favor, leia atentamente antes de criar sua conta.
+        </p>
+      </section>
+
+      <!-- 1. Aceitação dos Termos -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">1</span>
+          Aceitação dos Termos
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Ao acessar e utilizar o Gerenciador Financeiro, você declara ter lido, compreendido e concordado com estes Termos de Uso. Caso não concorde com algum dos termos aqui descritos, solicitamos que não utilize o aplicativo.
+          </p>
+          <p>
+            Reservamo-nos o direito de modificar estes termos a qualquer momento, sendo sua responsabilidade verificar periodicamente as atualizações.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. Descrição do Serviço -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">2</span>
+          Descrição do Serviço
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            O Gerenciador Financeiro é uma ferramenta de controle financeiro pessoal que permite:
+          </p>
+          <ul>
+            <li>Registrar receitas e despesas</li>
+            <li>Categorizar transações financeiras</li>
+            <li>Visualizar resumos e dashboards</li>
+            <li>Criar lançamentos recorrentes</li>
+            <li>Acompanhar o saldo mensal e anual</li>
+          </ul>
+          <p>
+            O serviço é fornecido "como está", sem garantias de disponibilidade ininterrupta ou ausência de erros.
+          </p>
+        </div>
+      </section>
+
+      <!-- 3. Cadastro e Conta -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">3</span>
+          Cadastro e Conta do Usuário
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Para utilizar o Gerenciador Financeiro, você deve criar uma conta fornecendo:
+          </p>
+          <ul>
+            <li>Nome completo</li>
+            <li>Endereço de e-mail válido</li>
+            <li>Senha segura (mínimo 6 caracteres)</li>
+          </ul>
+          <p>
+            Você é responsável por:
+          </p>
+          <ul>
+            <li>Manter a confidencialidade de sua senha</li>
+            <li>Todas as atividades realizadas em sua conta</li>
+            <li>Notificar imediatamente qualquer uso não autorizado</li>
+            <li>Fornecer informações verdadeiras e atualizadas</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 4. Privacidade e Dados -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">4</span>
+          Privacidade e Proteção de Dados
+        </h2>
+        <div class="legal-section__content">
+          <div class="highlight-box">
+            <strong>🔒 Seus dados são seus!</strong> Não compartilhamos, vendemos ou utilizamos suas informações financeiras para qualquer finalidade além do funcionamento do aplicativo.
+          </div>
+          <p>
+            Coletamos e armazenamos apenas as informações necessárias para o funcionamento do serviço:
+          </p>
+          <ul>
+            <li><strong>Dados de autenticação:</strong> E-mail e senha (criptografada)</li>
+            <li><strong>Dados financeiros:</strong> Transações registradas por você</li>
+            <li><strong>Preferências:</strong> Tema claro/escuro</li>
+          </ul>
+          <p>
+            Utilizamos o <strong>Supabase</strong> como provedor de infraestrutura, que segue rigorosos padrões de segurança e está em conformidade com regulamentações de proteção de dados.
+          </p>
+        </div>
+      </section>
+
+      <!-- 5. Uso Adequado -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">5</span>
+          Uso Adequado
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Ao utilizar o Gerenciador Financeiro, você concorda em:
+          </p>
+          <ul>
+            <li>Usar o aplicativo apenas para fins pessoais e lícitos</li>
+            <li>Não tentar acessar contas de outros usuários</li>
+            <li>Não realizar engenharia reversa ou modificar o aplicativo</li>
+            <li>Não utilizar scripts automatizados ou bots</li>
+            <li>Não sobrecarregar intencionalmente nossos servidores</li>
+          </ul>
+          <p>
+            O descumprimento destas regras pode resultar na suspensão ou exclusão de sua conta.
+          </p>
+        </div>
+      </section>
+
+      <!-- 6. Limitação de Responsabilidade -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">6</span>
+          Limitação de Responsabilidade
+        </h2>
+        <div class="legal-section__content">
+          <div class="highlight-box highlight-box--warning">
+            <strong>⚠️ Importante:</strong> O Gerenciador Financeiro é uma ferramenta de organização pessoal e não substitui orientação financeira profissional.
+          </div>
+          <p>
+            Não nos responsabilizamos por:
+          </p>
+          <ul>
+            <li>Decisões financeiras tomadas com base nas informações do aplicativo</li>
+            <li>Perdas ou danos decorrentes do uso ou impossibilidade de uso do serviço</li>
+            <li>Interrupções temporárias do serviço para manutenção</li>
+            <li>Perda de dados causada por fatores fora do nosso controle</li>
+            <li>Erros de cálculo decorrentes de dados inseridos incorretamente</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 7. Propriedade Intelectual -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">7</span>
+          Propriedade Intelectual
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Todo o conteúdo do Gerenciador Financeiro, incluindo mas não limitado a código-fonte, design, logotipos, textos e gráficos, é de propriedade da <strong>Prime Robotics Automações & IA</strong> ou de seus licenciadores.
+          </p>
+          <p>
+            É concedida a você uma licença limitada, não exclusiva e intransferível para usar o aplicativo conforme estes termos.
+          </p>
+        </div>
+      </section>
+
+      <!-- 8. Encerramento -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">8</span>
+          Encerramento da Conta
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Você pode encerrar sua conta a qualquer momento. Ao fazer isso:
+          </p>
+          <ul>
+            <li>Todos os seus dados serão permanentemente excluídos</li>
+            <li>Não será possível recuperar informações após a exclusão</li>
+            <li>O acesso ao aplicativo será imediatamente revogado</li>
+          </ul>
+          <p>
+            Reservamo-nos o direito de suspender ou encerrar contas que violem estes termos, sem aviso prévio.
+          </p>
+        </div>
+      </section>
+
+      <!-- 9. Alterações -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">9</span>
+          Alterações nos Termos
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Podemos atualizar estes Termos de Uso periodicamente. Quando fizermos alterações significativas, notificaremos você por e-mail ou através de um aviso no aplicativo.
+          </p>
+          <p>
+            O uso continuado do serviço após as alterações constitui aceitação dos novos termos.
+          </p>
+        </div>
+      </section>
+
+      <!-- 10. Contato -->
+      <section class="legal-section">
+        <h2 class="legal-section__title">
+          <span class="legal-section__number">10</span>
+          Contato
+        </h2>
+        <div class="legal-section__content">
+          <p>
+            Se você tiver dúvidas sobre estes Termos de Uso, entre em contato conosco:
+          </p>
+          <ul>
+            <li><strong>Empresa:</strong> Prime Robotics Automações & IA</li>
+            <li><strong>E-mail:</strong> primerobotics.ia@gmail.com</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="legal-footer">
+      <p class="legal-footer__date">
+        Última atualização: Dezembro de 2025
+      </p>
+      <div class="legal-footer__actions">
+        <a href="login.html" class="back-link">
+          ← Voltar para o Login
+        </a>
+        <a href="politica-privacidade.html" class="back-link">
+          🔒 Política de Privacidade
+        </a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Theme Script -->
+  <script>
+    const THEME_STORAGE_KEY = 'gerenciador-financeiro-theme';
+    
+    function getPreferredTheme() {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+    
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    }
+    
+    // Aplica tema inicial
+    applyTheme(getPreferredTheme());
+    
+    // Toggle do tema
+    document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+  </script>
+</body>
+</html>
