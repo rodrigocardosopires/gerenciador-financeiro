@@ -12,6 +12,59 @@ import { supabase } from './supabaseClient.js';
 
 const TABLE_NAME = 'transactions';
 
+// Variável global para armazenar o usuário atual
+let currentUser = null;
+
+// =====================================================
+// 1.1 AUTHENTICATION CHECK
+// =====================================================
+
+async function checkAuth() {
+  if (!supabase) return null;
+  
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      // Não está logado, redireciona para login
+      window.location.href = 'login.html';
+      return null;
+    }
+    
+    currentUser = session.user;
+    return currentUser;
+  } catch (error) {
+    console.error('Erro ao verificar autenticação:', error);
+    window.location.href = 'login.html';
+    return null;
+  }
+}
+
+async function handleLogout() {
+  if (!supabase) return;
+  
+  try {
+    await supabase.auth.signOut();
+    window.location.href = 'login.html';
+  } catch (error) {
+    console.error('Erro ao fazer logout:', error);
+    showToast('Erro ao sair. Tente novamente.', 'error');
+  }
+}
+
+function updateUserUI() {
+  const userNameEl = document.getElementById('user-name');
+  const userAvatarEl = document.getElementById('user-avatar');
+  
+  if (currentUser) {
+    const name = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuário';
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    if (userNameEl) userNameEl.textContent = name;
+    if (userAvatarEl) userAvatarEl.textContent = initials;
+  }
+}
+
 // =====================================================
 // 2. THEME MANAGEMENT
 // =====================================================
@@ -959,7 +1012,7 @@ function setupEventListeners() {
 
 async function init() {
   console.log('🚀 Iniciando Gerenciador Financeiro...');
-  
+
   if (!supabase) {
     dom.tabContent.innerHTML = `
       <div class="empty-state">
@@ -973,13 +1026,26 @@ async function init() {
     `;
     return;
   }
+
+  // Verifica se o usuário está autenticado
+  const user = await checkAuth();
+  if (!user) return; // Será redirecionado para login
   
+  // Atualiza UI com dados do usuário
+  updateUserUI();
+  
+  // Configura event listeners (incluindo logout)
   setupEventListeners();
+  
+  // Listener para logout
+  document.getElementById('btn-logout')?.addEventListener('click', handleLogout);
+  
   await loadAllData();
   await setActiveTab(state.activeTab);
   state.initialized = true;
-  
+
   console.log('✅ Aplicação iniciada com sucesso!');
+  console.log('👤 Usuário:', currentUser?.email);
 }
 
 if (document.readyState === 'loading') {

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Gerenciador Financeiro - Acesse sua conta">
+  <meta name="theme-color" content="#f8fafc">
+  <meta name="color-scheme" content="light dark">
+  <title>Login - Gerenciador Financeiro</title>
+  
+  <!-- Preload Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Supabase Client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body class="auth-page">
+  <!-- Background Decorations -->
+  <div class="auth-bg">
+    <div class="auth-bg__shape auth-bg__shape--1"></div>
+    <div class="auth-bg__shape auth-bg__shape--2"></div>
+    <div class="auth-bg__shape auth-bg__shape--3"></div>
+  </div>
+
+  <!-- Main Auth Container -->
+  <main class="auth-container">
+    <!-- Left Side - Branding -->
+    <aside class="auth-branding">
+      <div class="auth-branding__content">
+        <div class="auth-branding__logo">💰</div>
+        <h1 class="auth-branding__title">Gerenciador Financeiro</h1>
+        <p class="auth-branding__subtitle">Controle suas finanças de forma simples e inteligente</p>
+        
+        <div class="auth-branding__features">
+          <div class="auth-feature">
+            <span class="auth-feature__icon">📊</span>
+            <span class="auth-feature__text">Dashboard completo</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature__icon">🔄</span>
+            <span class="auth-feature__text">Lançamentos recorrentes</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature__icon">🌙</span>
+            <span class="auth-feature__text">Tema claro/escuro</span>
+          </div>
+          <div class="auth-feature">
+            <span class="auth-feature__icon">🔒</span>
+            <span class="auth-feature__text">Dados seguros</span>
+          </div>
+        </div>
+      </div>
+      
+      <footer class="auth-branding__footer">
+        <p>&copy; 2025 Prime Robotics Automações & IA</p>
+      </footer>
+    </aside>
+
+    <!-- Right Side - Auth Forms -->
+    <section class="auth-forms">
+      <!-- Theme Toggle -->
+      <button class="theme-toggle theme-toggle--auth" id="theme-toggle" aria-label="Alternar tema">
+        <span class="theme-toggle__track"></span>
+        <span class="theme-toggle__thumb">
+          <span class="theme-toggle__icon theme-toggle__icon--sun">☀️</span>
+          <span class="theme-toggle__icon theme-toggle__icon--moon">🌙</span>
+        </span>
+      </button>
+
+      <!-- Login Form -->
+      <div class="auth-card" id="login-card">
+        <div class="auth-card__header">
+          <h2 class="auth-card__title">Bem-vindo de volta!</h2>
+          <p class="auth-card__subtitle">Entre com sua conta para continuar</p>
+        </div>
+
+        <form class="auth-form" id="login-form">
+          <div class="form-group">
+            <label class="form-label" for="login-email">E-mail</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">📧</span>
+              <input 
+                type="email" 
+                class="form-input form-input--icon" 
+                id="login-email" 
+                name="email" 
+                placeholder="seu@email.com" 
+                required
+                autocomplete="email"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">Senha</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">🔒</span>
+              <input 
+                type="password" 
+                class="form-input form-input--icon" 
+                id="login-password" 
+                name="password" 
+                placeholder="••••••••" 
+                required
+                autocomplete="current-password"
+                minlength="6"
+              >
+              <button type="button" class="password-toggle" id="login-password-toggle" aria-label="Mostrar senha">
+                👁️
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group form-group--row">
+            <label class="checkbox-label">
+              <input type="checkbox" name="remember" class="checkbox-input">
+              <span class="checkbox-custom"></span>
+              <span>Lembrar de mim</span>
+            </label>
+            <a href="#" class="auth-link" id="forgot-password-link">Esqueceu a senha?</a>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full btn--lg" id="login-btn">
+            <span class="btn__text">Entrar</span>
+            <span class="btn__loader" style="display: none;">⏳</span>
+          </button>
+        </form>
+
+        <div class="auth-card__footer">
+          <p>Não tem uma conta? <a href="#" class="auth-link" id="show-register">Criar conta</a></p>
+        </div>
+      </div>
+
+      <!-- Register Form -->
+      <div class="auth-card" id="register-card" style="display: none;">
+        <div class="auth-card__header">
+          <h2 class="auth-card__title">Criar conta</h2>
+          <p class="auth-card__subtitle">Comece a controlar suas finanças hoje</p>
+        </div>
+
+        <form class="auth-form" id="register-form">
+          <div class="form-group">
+            <label class="form-label" for="register-name">Nome completo</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">👤</span>
+              <input 
+                type="text" 
+                class="form-input form-input--icon" 
+                id="register-name" 
+                name="name" 
+                placeholder="Seu nome" 
+                required
+                autocomplete="name"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="register-email">E-mail</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">📧</span>
+              <input 
+                type="email" 
+                class="form-input form-input--icon" 
+                id="register-email" 
+                name="email" 
+                placeholder="seu@email.com" 
+                required
+                autocomplete="email"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="register-password">Senha</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">🔒</span>
+              <input 
+                type="password" 
+                class="form-input form-input--icon" 
+                id="register-password" 
+                name="password" 
+                placeholder="Mínimo 6 caracteres" 
+                required
+                autocomplete="new-password"
+                minlength="6"
+              >
+              <button type="button" class="password-toggle" id="register-password-toggle" aria-label="Mostrar senha">
+                👁️
+              </button>
+            </div>
+            <div class="password-strength" id="password-strength">
+              <div class="password-strength__bar"></div>
+              <span class="password-strength__text"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="register-confirm-password">Confirmar senha</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">🔒</span>
+              <input 
+                type="password" 
+                class="form-input form-input--icon" 
+                id="register-confirm-password" 
+                name="confirm_password" 
+                placeholder="Repita a senha" 
+                required
+                autocomplete="new-password"
+                minlength="6"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="terms" class="checkbox-input" required>
+              <span class="checkbox-custom"></span>
+              <span>Concordo com os <a href="#" class="auth-link">Termos de Uso</a></span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full btn--lg" id="register-btn">
+            <span class="btn__text">Criar conta</span>
+            <span class="btn__loader" style="display: none;">⏳</span>
+          </button>
+        </form>
+
+        <div class="auth-card__footer">
+          <p>Já tem uma conta? <a href="#" class="auth-link" id="show-login">Entrar</a></p>
+        </div>
+      </div>
+
+      <!-- Forgot Password Form -->
+      <div class="auth-card" id="forgot-card" style="display: none;">
+        <div class="auth-card__header">
+          <h2 class="auth-card__title">Recuperar senha</h2>
+          <p class="auth-card__subtitle">Enviaremos um link para redefinir sua senha</p>
+        </div>
+
+        <form class="auth-form" id="forgot-form">
+          <div class="form-group">
+            <label class="form-label" for="forgot-email">E-mail</label>
+            <div class="input-icon-wrapper">
+              <span class="input-icon">📧</span>
+              <input 
+                type="email" 
+                class="form-input form-input--icon" 
+                id="forgot-email" 
+                name="email" 
+                placeholder="seu@email.com" 
+                required
+                autocomplete="email"
+              >
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full btn--lg" id="forgot-btn">
+            <span class="btn__text">Enviar link de recuperação</span>
+            <span class="btn__loader" style="display: none;">⏳</span>
+          </button>
+        </form>
+
+        <div class="auth-card__footer">
+          <p><a href="#" class="auth-link" id="back-to-login">← Voltar para o login</a></p>
+        </div>
+      </div>
+
+      <!-- Success Message -->
+      <div class="auth-card auth-card--success" id="success-card" style="display: none;">
+        <div class="auth-success">
+          <div class="auth-success__icon">✅</div>
+          <h2 class="auth-success__title" id="success-title">E-mail enviado!</h2>
+          <p class="auth-success__message" id="success-message">
+            Verifique sua caixa de entrada para continuar.
+          </p>
+          <button class="btn btn--secondary btn--full" id="success-back-btn">
+            Voltar para o login
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>

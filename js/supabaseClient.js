@@ -38,6 +38,7 @@ function createSupabaseClient() {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        storageKey: 'gerenciador-financeiro-auth',
       }
     });
     
