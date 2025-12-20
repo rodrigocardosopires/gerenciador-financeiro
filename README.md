@@ -20,6 +20,7 @@ Aplicação web moderna para controle de finanças pessoais. Gerencie receitas, 
 - **Dashboard Anual**: Visualize receitas e despesas mês a mês
 - **Resumo Mensal**: Acompanhe o saldo do mês corrente em tempo real
 - **Filtro por Ano**: Navegue entre diferentes anos
+- **Consultas Avançadas**: Filtre lançamentos por período, categoria e tipo com somatórios detalhados
 
 ### 🔐 Segurança
 - **Autenticação Completa**: Login, cadastro e recuperação de senha
