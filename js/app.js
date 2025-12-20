@@ -123,7 +123,8 @@ const tabsConfig = [
   { key: 'contas_fixas', label: 'Contas Fixas', icon: '🏠', type: 'expense', placeholder: 'Ex.: Aluguel, Internet...' },
   { key: 'contas_variaveis', label: 'Contas Variáveis', icon: '🛒', type: 'expense', placeholder: 'Ex.: Supermercado...' },
   { key: 'cartoes_credito', label: 'Cartões de Crédito', icon: '💳', type: 'expense', placeholder: 'Ex.: Fatura Nubank...' },
-  { key: 'dashboard_anual', label: 'Dashboard Anual', icon: '📅', type: 'dashboard' }
+  { key: 'dashboard_anual', label: 'Dashboard Anual', icon: '📅', type: 'dashboard' },
+  { key: 'consultas', label: 'Consultas', icon: '🔍', type: 'query' }
 ];
 
 const MONTH_NAMES = [
@@ -156,11 +157,20 @@ const state = {
     contas_fixas: false,
     contas_variaveis: false,
     cartoes_credito: false,
-    dashboard_anual: false
+    dashboard_anual: false,
+    consultas: false
   },
   initialized: false,
   dashboardYear: new Date().getFullYear(),
-  dashboardCache: { year: null, data: null }
+  dashboardCache: { year: null, data: null },
+  // Estado dos filtros de consulta
+  queryFilters: {
+    startDate: '',
+    endDate: '',
+    tabTypes: [], // Array de tab_keys selecionados (vazio = todos)
+    category: ''
+  },
+  queryResults: null // Resultados da última consulta
 };
 
 // =====================================================
@@ -305,7 +315,8 @@ function calculateCurrentMonthTotals(stateTransactions) {
   let totalDespesas = 0;
   
   tabsConfig.forEach(tab => {
-    if (tab.type === 'dashboard') return;
+    // Ignora abas especiais (dashboard e consultas)
+    if (tab.type === 'dashboard' || tab.type === 'query') return;
     
     const allTransactions = stateTransactions[tab.key] || [];
     const monthTransactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth);
@@ -347,7 +358,8 @@ function calculateMonthlyData(year) {
   let totalYearExpense = 0;
   
   tabsConfig.forEach(tabConfig => {
-    if (tabConfig.type === 'dashboard') return;
+    // Ignora abas especiais (dashboard e consultas)
+    if (tabConfig.type === 'dashboard' || tabConfig.type === 'query') return;
     
     const transactions = state.transactions[tabConfig.key] || [];
     
@@ -394,7 +406,8 @@ function getAvailableYears() {
   const years = new Set([new Date().getFullYear()]);
   
   tabsConfig.forEach(tabConfig => {
-    if (tabConfig.type === 'dashboard') return;
+    // Ignora abas especiais (dashboard e consultas)
+    if (tabConfig.type === 'dashboard' || tabConfig.type === 'query') return;
     
     (state.transactions[tabConfig.key] || []).forEach(t => {
       if (t.date) years.add(new Date(t.date).getFullYear());
@@ -406,6 +419,126 @@ function getAvailableYears() {
 
 function invalidateDashboardCache() {
   state.dashboardCache = { year: null, data: null };
+}
+
+// =====================================================
+// 6.1 QUERY FILTERS - Consultas Avançadas
+// =====================================================
+
+/**
+ * Obtém todas as categorias únicas de todas as transações
+ * Inclui categorias padrão e categorias das transações existentes
+ * @returns {string[]} Array de categorias únicas ordenadas
+ */
+function getAllCategories() {
+  const categories = new Set();
+
+  const transactionTabs = ['receitas', 'contas_fixas', 'contas_variaveis', 'cartoes_credito'];
+
+  // Adiciona categorias padrão
+  transactionTabs.forEach(tabKey => {
+    (defaultCategories[tabKey] || []).forEach(cat => {
+      if (cat && cat.trim()) {
+        categories.add(cat.trim());
+      }
+    });
+  });
+
+  // Adiciona categorias das transações existentes
+  transactionTabs.forEach(tabKey => {
+    (state.transactions[tabKey] || []).forEach(t => {
+      if (t.category && t.category.trim()) {
+        categories.add(t.category.trim());
+      }
+    });
+  });
+
+  return Array.from(categories).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+/**
+ * Filtra transações baseado nos critérios de consulta
+ * @param {Object} filters - Filtros a serem aplicados
+ * @returns {Object} Objeto com transações filtradas e somatórios
+ */
+function executeQuery(filters) {
+  const { startDate, endDate, tabTypes, category } = filters;
+  
+  // Definir quais tabs consultar
+  const tabsToQuery = tabTypes.length > 0 
+    ? tabTypes 
+    : ['receitas', 'contas_fixas', 'contas_variaveis', 'cartoes_credito'];
+  
+  const results = {
+    transactions: [],
+    totals: {
+      receitas: 0,
+      contas_fixas: 0,
+      contas_variaveis: 0,
+      cartoes_credito: 0,
+      totalReceitas: 0,
+      totalDespesas: 0,
+      saldo: 0
+    },
+    counts: {
+      receitas: 0,
+      contas_fixas: 0,
+      contas_variaveis: 0,
+      cartoes_credito: 0,
+      total: 0
+    }
+  };
+  
+  // Parsear datas para comparação
+  const startDateObj = startDate ? new Date(startDate + 'T00:00:00') : null;
+  const endDateObj = endDate ? new Date(endDate + 'T23:59:59') : null;
+  
+  tabsToQuery.forEach(tabKey => {
+    const transactions = state.transactions[tabKey] || [];
+    const tabConfig = tabsConfig.find(t => t.key === tabKey);
+    
+    transactions.forEach(t => {
+      // Filtro por data
+      if (t.date) {
+        const transactionDate = new Date(t.date + 'T12:00:00');
+        
+        if (startDateObj && transactionDate < startDateObj) return;
+        if (endDateObj && transactionDate > endDateObj) return;
+      }
+      
+      // Filtro por categoria
+      if (category && t.category !== category) return;
+      
+      // Transação passou nos filtros
+      const amount = parseFloat(t.amount || 0);
+      
+      results.transactions.push({
+        ...t,
+        tabKey,
+        tabLabel: tabConfig?.label || tabKey,
+        tabIcon: tabConfig?.icon || '📄',
+        tabType: tabConfig?.type || 'expense'
+      });
+      
+      results.totals[tabKey] += amount;
+      results.counts[tabKey]++;
+      results.counts.total++;
+      
+      if (tabConfig?.type === 'income') {
+        results.totals.totalReceitas += amount;
+      } else {
+        results.totals.totalDespesas += amount;
+      }
+    });
+  });
+  
+  // Calcular saldo
+  results.totals.saldo = results.totals.totalReceitas - results.totals.totalDespesas;
+  
+  // Ordenar por data (mais recente primeiro)
+  results.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  return results;
 }
 
 /**
@@ -762,6 +895,297 @@ function changeYear(delta) {
   showToast(`Exibindo dados de ${newYear}`, 'info', 2000);
 }
 
+// =====================================================
+// 7.1 RENDER CONSULTAS - Aba de Consultas Avançadas
+// =====================================================
+
+function renderConsultas() {
+  const isLoading = state.loading.consultas;
+  const allCategories = getAllCategories();
+  const filters = state.queryFilters;
+  const results = state.queryResults;
+  
+  // Definir datas padrão (mês atual) se não houver filtros definidos
+  const today = new Date();
+  const defaultStartDate = filters.startDate || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  const defaultEndDate = filters.endDate || today.toISOString().split('T')[0];
+  
+  const transactionTabs = tabsConfig.filter(t => t.type !== 'dashboard' && t.type !== 'query');
+  
+  const html = `
+    <div class="query-container">
+      <!-- Seção de Filtros -->
+      <section class="query-filters">
+        <h3 class="query-filters__title">🔍 Filtros de Consulta</h3>
+        
+        <form class="query-form" id="query-form">
+          <!-- Linha 1: Datas -->
+          <div class="query-form__row">
+            <div class="form-group">
+              <label class="form-label" for="query-start-date">📅 Data Inicial</label>
+              <input type="date" class="form-input" id="query-start-date" name="startDate" value="${defaultStartDate}">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="query-end-date">📅 Data Final</label>
+              <input type="date" class="form-input" id="query-end-date" name="endDate" value="${defaultEndDate}">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="query-category">🏷️ Categoria</label>
+              <select class="form-select" id="query-category" name="category">
+                <option value="">Todas as categorias</option>
+                ${allCategories.map(cat => `
+                  <option value="${cat}" ${filters.category === cat ? 'selected' : ''}>${cat}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+          
+          <!-- Linha 2: Tipos de lançamento -->
+          <div class="query-form__row">
+            <div class="form-group form-group--full">
+              <label class="form-label">📋 Tipos de Lançamento</label>
+              <div class="query-types">
+                ${transactionTabs.map(tab => `
+                  <label class="query-type-checkbox">
+                    <input type="checkbox" name="tabTypes" value="${tab.key}" 
+                      ${filters.tabTypes.length === 0 || filters.tabTypes.includes(tab.key) ? 'checked' : ''}>
+                    <span class="query-type-checkbox__box"></span>
+                    <span class="query-type-checkbox__icon">${tab.icon}</span>
+                    <span class="query-type-checkbox__label">${tab.label}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Botões de ação -->
+          <div class="query-form__actions">
+            <button type="submit" class="btn btn--primary btn--lg" id="btn-query">
+              🔍 Consultar
+            </button>
+            <button type="button" class="btn btn--secondary" id="btn-clear-filters">
+              🗑️ Limpar Filtros
+            </button>
+          </div>
+        </form>
+      </section>
+      
+      ${isLoading ? renderLoading() : renderQueryResults(results)}
+    </div>
+  `;
+  
+  dom.tabContent.innerHTML = html;
+  
+  // Event listeners
+  document.getElementById('query-form')?.addEventListener('submit', handleQuerySubmit);
+  document.getElementById('btn-clear-filters')?.addEventListener('click', handleClearFilters);
+}
+
+/**
+ * Renderiza os resultados da consulta
+ */
+function renderQueryResults(results) {
+  if (!results) {
+    return `
+      <section class="query-results query-results--empty">
+        <div class="query-hint">
+          <div class="query-hint__icon">💡</div>
+          <h4 class="query-hint__title">Como usar os filtros</h4>
+          <ul class="query-hint__list">
+            <li>Selecione um <strong>período de datas</strong> para filtrar por intervalo</li>
+            <li>Escolha uma <strong>categoria</strong> específica ou deixe em branco para todas</li>
+            <li>Marque os <strong>tipos de lançamento</strong> que deseja incluir</li>
+            <li>Clique em <strong>Consultar</strong> para ver os resultados</li>
+          </ul>
+        </div>
+      </section>
+    `;
+  }
+  
+  if (results.counts.total === 0) {
+    return `
+      <section class="query-results">
+        <div class="query-summary">
+          ${renderQuerySummary(results)}
+        </div>
+        <div class="empty-state">
+          <div class="empty-state__icon">🔎</div>
+          <p class="empty-state__text">Nenhum lançamento encontrado<br>para os filtros selecionados.</p>
+        </div>
+      </section>
+    `;
+  }
+  
+  return `
+    <section class="query-results">
+      <!-- Resumo / Totais -->
+      <div class="query-summary">
+        ${renderQuerySummary(results)}
+      </div>
+      
+      <!-- Lista de Resultados -->
+      <div class="query-list">
+        <h4 class="query-list__title">
+          📋 Resultados
+          <span class="query-list__count">(${results.counts.total} ${results.counts.total === 1 ? 'lançamento' : 'lançamentos'})</span>
+        </h4>
+        
+        <div class="items-header items-header--query">
+          <span>Data</span>
+          <span>Tipo</span>
+          <span>Descrição</span>
+          <span>Categoria</span>
+          <span>Valor</span>
+        </div>
+        
+        <div class="items-list">
+          ${results.transactions.map(t => {
+            const amountClass = t.tabType === 'income' ? 'item-row__amount--income' : 'item-row__amount--expense';
+            return `
+              <div class="item-row item-row--query">
+                <span class="item-row__date">${formatDate(t.date)}</span>
+                <span class="item-row__type">
+                  <span class="item-row__type-icon">${t.tabIcon}</span>
+                  <span class="item-row__type-label">${t.tabLabel}</span>
+                </span>
+                <span class="item-row__description" title="${t.description}">${t.description}</span>
+                <span class="item-row__category">${t.category || '-'}</span>
+                <span class="item-row__amount ${amountClass}">${formatCurrency(t.amount)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * Renderiza o resumo/somatório da consulta
+ */
+function renderQuerySummary(results) {
+  const { totals, counts } = results;
+  
+  return `
+    <div class="query-summary__grid">
+      <!-- Card Receitas -->
+      <div class="query-summary__card query-summary__card--income">
+        <div class="query-summary__card-header">
+          <span class="query-summary__card-icon">📈</span>
+          <span class="query-summary__card-label">Receitas</span>
+        </div>
+        <div class="query-summary__card-value">${formatCurrency(totals.receitas)}</div>
+        <div class="query-summary__card-count">${counts.receitas} ${counts.receitas === 1 ? 'lançamento' : 'lançamentos'}</div>
+      </div>
+      
+      <!-- Card Contas Fixas -->
+      <div class="query-summary__card query-summary__card--expense">
+        <div class="query-summary__card-header">
+          <span class="query-summary__card-icon">🏠</span>
+          <span class="query-summary__card-label">Contas Fixas</span>
+        </div>
+        <div class="query-summary__card-value">${formatCurrency(totals.contas_fixas)}</div>
+        <div class="query-summary__card-count">${counts.contas_fixas} ${counts.contas_fixas === 1 ? 'lançamento' : 'lançamentos'}</div>
+      </div>
+      
+      <!-- Card Contas Variáveis -->
+      <div class="query-summary__card query-summary__card--expense">
+        <div class="query-summary__card-header">
+          <span class="query-summary__card-icon">🛒</span>
+          <span class="query-summary__card-label">Contas Variáveis</span>
+        </div>
+        <div class="query-summary__card-value">${formatCurrency(totals.contas_variaveis)}</div>
+        <div class="query-summary__card-count">${counts.contas_variaveis} ${counts.contas_variaveis === 1 ? 'lançamento' : 'lançamentos'}</div>
+      </div>
+      
+      <!-- Card Cartões de Crédito -->
+      <div class="query-summary__card query-summary__card--expense">
+        <div class="query-summary__card-header">
+          <span class="query-summary__card-icon">💳</span>
+          <span class="query-summary__card-label">Cartões de Crédito</span>
+        </div>
+        <div class="query-summary__card-value">${formatCurrency(totals.cartoes_credito)}</div>
+        <div class="query-summary__card-count">${counts.cartoes_credito} ${counts.cartoes_credito === 1 ? 'lançamento' : 'lançamentos'}</div>
+      </div>
+    </div>
+    
+    <!-- Totais Gerais -->
+    <div class="query-summary__totals">
+      <div class="query-summary__total query-summary__total--income">
+        <span class="query-summary__total-label">Total Receitas</span>
+        <span class="query-summary__total-value">${formatCurrency(totals.totalReceitas)}</span>
+      </div>
+      <div class="query-summary__total query-summary__total--expense">
+        <span class="query-summary__total-label">Total Despesas</span>
+        <span class="query-summary__total-value">${formatCurrency(totals.totalDespesas)}</span>
+      </div>
+      <div class="query-summary__total query-summary__total--balance ${totals.saldo >= 0 ? 'positive' : 'negative'}">
+        <span class="query-summary__total-label">Saldo do Período</span>
+        <span class="query-summary__total-value">${formatCurrency(totals.saldo)}</span>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Handler para submissão do formulário de consulta
+ */
+async function handleQuerySubmit(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  // Coletar filtros
+  const filters = {
+    startDate: formData.get('startDate') || '',
+    endDate: formData.get('endDate') || '',
+    category: formData.get('category') || '',
+    tabTypes: formData.getAll('tabTypes')
+  };
+  
+  // Validar datas
+  if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+    showToast('A data inicial não pode ser maior que a data final', 'warning');
+    return;
+  }
+  
+  // Salvar filtros no estado
+  state.queryFilters = filters;
+  state.loading.consultas = true;
+  renderConsultas();
+  
+  // Garantir que todos os dados estão carregados
+  if (!state.initialized) {
+    await loadAllData();
+    state.initialized = true;
+  }
+  
+  // Executar consulta
+  state.queryResults = executeQuery(filters);
+  state.loading.consultas = false;
+  
+  renderConsultas();
+  showToast(`Consulta realizada: ${state.queryResults.counts.total} lançamentos encontrados`, 'success');
+}
+
+/**
+ * Handler para limpar filtros
+ */
+function handleClearFilters() {
+  state.queryFilters = {
+    startDate: '',
+    endDate: '',
+    tabTypes: [],
+    category: ''
+  };
+  state.queryResults = null;
+  renderConsultas();
+  showToast('Filtros limpos', 'info');
+}
+
 function renderSummary() {
   const totals = calculateCurrentMonthTotals(state.transactions);
   
@@ -820,6 +1244,7 @@ function removeToast(toast) {
 async function setActiveTab(tabKey) {
   const tabConfig = tabsConfig.find(t => t.key === tabKey);
   
+  // Aba Dashboard Anual
   if (tabConfig?.type === 'dashboard') {
     state.activeTab = tabKey;
     updateTabsUI(tabKey);
@@ -835,6 +1260,26 @@ async function setActiveTab(tabKey) {
     return;
   }
   
+  // Aba Consultas
+  if (tabConfig?.type === 'query') {
+    state.activeTab = tabKey;
+    updateTabsUI(tabKey);
+    
+    // Carregar dados se ainda não foram inicializados
+    if (!state.initialized) {
+      state.loading.consultas = true;
+      renderConsultas(); // Mostra loading
+      await loadAllData();
+      state.initialized = true;
+      state.loading.consultas = false;
+    }
+    
+    // Renderiza após os dados estarem carregados
+    renderConsultas();
+    return;
+  }
+  
+  // Abas de transações
   if (state.activeTab === tabKey && state.transactions[tabKey]?.length > 0) {
     renderTab(tabKey);
     return;
@@ -859,11 +1304,11 @@ async function loadTabData(tabKey) {
 
 async function loadAllData() {
   const promises = tabsConfig
-    .filter(tab => tab.type !== 'dashboard')
+    .filter(tab => tab.type !== 'dashboard' && tab.type !== 'query')
     .map(tab => fetchTransactions(tab.key).then(data => {
       state.transactions[tab.key] = data;
     }));
-  
+
   await Promise.all(promises);
   renderSummary();
 }
@@ -989,9 +1434,14 @@ async function handleRefreshClick() {
   
   await loadAllData();
   
+  // Renderiza de acordo com a aba ativa
   if (state.activeTab === 'dashboard_anual') {
     invalidateDashboardCache();
     renderDashboardAnual();
+  } else if (state.activeTab === 'consultas') {
+    // Limpa resultados anteriores e re-renderiza consultas
+    state.queryResults = null;
+    renderConsultas();
   } else {
     await loadTabData(state.activeTab);
   }
