@@ -529,6 +529,11 @@ a:hover {
   letter-spacing: 0.05em;
 }
 
+/* Items Header para despesas (com coluna Pago) */
+.items-header--expense {
+  grid-template-columns: 100px 1fr 120px 130px 60px 80px;
+}
+
 /* Item Row - Modern Card Style */
 .item-row {
   display: grid;
@@ -541,6 +546,26 @@ a:hover {
   margin-bottom: var(--spacing-sm);
   transition: all var(--transition-fast);
   align-items: center;
+}
+
+/* Item Row para despesas (com coluna Pago) */
+.item-row--expense {
+  grid-template-columns: 100px 1fr 120px 130px 60px 80px;
+}
+
+/* Item Row marcado como pago */
+.item-row--paid {
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+}
+
+.item-row--paid .item-row__description {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.item-row--paid .item-row__amount {
+  color: var(--color-success);
 }
 
 .item-row:hover {
@@ -593,6 +618,66 @@ a:hover {
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-xs);
+}
+
+/* Coluna Pago */
+.item-row__paid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Checkbox de Pago - Estilo personalizado */
+.paid-checkbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.paid-checkbox__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.paid-checkbox__box {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-input);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paid-checkbox__input:checked + .paid-checkbox__box {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.paid-checkbox__input:checked + .paid-checkbox__box::after {
+  content: '✓';
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.paid-checkbox__input:focus + .paid-checkbox__box {
+  box-shadow: 0 0 0 3px var(--color-success-glow);
+}
+
+.paid-checkbox:hover .paid-checkbox__box {
+  border-color: var(--color-success);
+}
+
+.paid-checkbox__input:disabled + .paid-checkbox__box {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Empty State */
@@ -1492,8 +1577,13 @@ a:hover {
   
   .item-row {
     grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     gap: var(--spacing-xs);
+  }
+  
+  .item-row--expense {
+    grid-template-columns: 1fr auto auto;
+    grid-template-rows: auto auto;
   }
   
   .item-row__date {
@@ -1510,14 +1600,24 @@ a:hover {
     display: none;
   }
   
-  .item-row__amount {
-    grid-column: 2;
+  .item-row__paid {
     grid-row: 2;
   }
   
+  .item-row__amount {
+    grid-row: 2;
+  }
+  
+  .item-row--expense .item-row__amount {
+    grid-column: 3;
+  }
+  
   .item-row__actions {
-    grid-column: 2;
     grid-row: 1;
+  }
+  
+  .item-row--expense .item-row__actions {
+    grid-column: 3;
   }
   
   .form {

@@ -283,6 +283,32 @@ async function deleteTransaction(id) {
   }
 }
 
+async function updateTransactionPaid(id, isPaid) {
+  if (!supabase) {
+    showToast('Erro: Supabase não configurado', 'error');
+    return false;
+  }
+  
+  try {
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .update({ is_paid: isPaid })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Erro ao atualizar status:', error);
+      showToast(`Erro ao atualizar: ${error.message}`, 'error');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro inesperado ao atualizar:', error);
+    showToast('Erro ao atualizar o lançamento', 'error');
+    return false;
+  }
+}
+
 // =====================================================
 // 6. CALCULATION LOGIC
 // =====================================================
@@ -604,7 +630,13 @@ function renderTab(tabKey) {
   const tabConfig = tabsConfig.find(t => t.key === tabKey);
   if (!tabConfig) return;
   
-  const transactions = state.transactions[tabKey] || [];
+  // Filtra apenas transações do mês atual
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const allTransactions = state.transactions[tabKey] || [];
+  const transactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth);
+  
   const isLoading = state.loading[tabKey];
   const categories = defaultCategories[tabKey] || [];
   
@@ -676,7 +708,7 @@ function renderTab(tabKey) {
     
     <section class="list-section">
       <h3 class="list-section__title">
-        📋 Lançamentos
+        📋 Lançamentos de ${MONTH_NAMES[currentMonth]}
         <span class="list-section__count">(${transactions.length} ${transactions.length === 1 ? 'item' : 'itens'})</span>
       </h3>
       ${isLoading ? renderLoading() : renderTransactionsList(transactions, tabConfig)}
@@ -689,6 +721,11 @@ function renderTab(tabKey) {
   document.getElementById(`form-${tabKey}`)?.addEventListener('submit', handleFormSubmit);
   dom.tabContent.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', handleDeleteClick);
+  });
+  
+  // Event listeners para checkbox "Pago"
+  dom.tabContent.querySelectorAll('[data-action="toggle-paid"]').forEach(checkbox => {
+    checkbox.addEventListener('change', handleTogglePaid);
   });
   
   // Event listeners de recorrência
@@ -756,22 +793,37 @@ function renderTransactionsList(transactions, tabConfig) {
   }
   
   const amountClass = tabConfig.type === 'income' ? 'item-row__amount--income' : 'item-row__amount--expense';
+  const isExpense = tabConfig.type === 'expense';
   
   return `
-    <div class="items-header">
+    <div class="items-header ${isExpense ? 'items-header--expense' : ''}">
       <span>Data</span>
       <span>Descrição</span>
       <span>Categoria</span>
       <span>Valor</span>
+      ${isExpense ? '<span>Pago?</span>' : ''}
       <span>Ações</span>
     </div>
     <div class="items-list">
       ${transactions.map(t => `
-        <div class="item-row" data-id="${t.id}">
+        <div class="item-row ${isExpense ? 'item-row--expense' : ''} ${t.is_paid ? 'item-row--paid' : ''}" data-id="${t.id}">
           <span class="item-row__date">${formatDate(t.date)}</span>
           <span class="item-row__description" title="${t.description}">${t.description}</span>
           <span class="item-row__category">${t.category || '-'}</span>
           <span class="item-row__amount ${amountClass}">${formatCurrency(t.amount)}</span>
+          ${isExpense ? `
+            <div class="item-row__paid">
+              <label class="paid-checkbox">
+                <input type="checkbox" 
+                  class="paid-checkbox__input" 
+                  data-action="toggle-paid" 
+                  data-id="${t.id}" 
+                  data-tab="${tabConfig.key}"
+                  ${t.is_paid ? 'checked' : ''}>
+                <span class="paid-checkbox__box"></span>
+              </label>
+            </div>
+          ` : ''}
           <div class="item-row__actions">
             <button class="btn btn--danger btn--small" data-action="delete" data-id="${t.id}" data-tab="${tabConfig.key}" title="Remover">🗑️</button>
           </div>
@@ -1421,6 +1473,39 @@ async function handleDeleteClick(event) {
   } else {
     button.disabled = false;
   }
+}
+
+async function handleTogglePaid(event) {
+  const checkbox = event.currentTarget;
+  const id = parseInt(checkbox.dataset.id);
+  const tabKey = checkbox.dataset.tab;
+  const isPaid = checkbox.checked;
+  
+  // Desabilita temporariamente para evitar cliques duplos
+  checkbox.disabled = true;
+  
+  const success = await updateTransactionPaid(id, isPaid);
+  
+  if (success) {
+    // Atualiza o estado local
+    const transaction = state.transactions[tabKey].find(t => t.id === id);
+    if (transaction) {
+      transaction.is_paid = isPaid;
+    }
+    
+    // Atualiza a UI da linha
+    const row = checkbox.closest('.item-row');
+    if (row) {
+      row.classList.toggle('item-row--paid', isPaid);
+    }
+    
+    showToast(isPaid ? 'Marcado como pago!' : 'Desmarcado', 'success', 2000);
+  } else {
+    // Reverte o checkbox em caso de erro
+    checkbox.checked = !isPaid;
+  }
+  
+  checkbox.disabled = false;
 }
 
 function handleTabClick(event) {

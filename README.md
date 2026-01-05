@@ -15,10 +15,12 @@ Aplicação web moderna para controle de finanças pessoais. Gerencie receitas, 
 - **Contas Variáveis**: Acompanhe gastos não previstos
 - **Cartões de Crédito**: Gerencie faturas e compras no cartão
 - **Lançamentos Recorrentes**: Crie parcelas automáticas para meses futuros
+- **Controle de Pagamentos**: Marque despesas como pagas com checkbox visual
 
 ### 📈 Visualização
 - **Dashboard Anual**: Visualize receitas e despesas mês a mês
 - **Resumo Mensal**: Acompanhe o saldo do mês corrente em tempo real
+- **Lançamentos do Mês**: Exibe apenas transações do mês atual nas abas principais
 - **Filtro por Ano**: Navegue entre diferentes anos
 - **Consultas Avançadas**: Filtre lançamentos por período, categoria e tipo com somatórios detalhados
 
@@ -87,13 +89,15 @@ create table if not exists public.transactions (
   date date not null,
   description text not null,
   category text,
-  amount numeric(14, 2) not null
+  amount numeric(14, 2) not null,
+  is_paid boolean default false
 );
 
 -- Índices para performance
 create index if not exists idx_transactions_user_id on public.transactions(user_id);
 create index if not exists idx_transactions_tab_key on public.transactions(tab_key);
 create index if not exists idx_transactions_date on public.transactions(date);
+create index if not exists idx_transactions_is_paid on public.transactions(is_paid);
 
 -- Habilitar Row Level Security
 alter table public.transactions enable row level security;
