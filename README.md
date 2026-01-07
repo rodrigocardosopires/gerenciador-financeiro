@@ -16,11 +16,13 @@ Aplicação web moderna para controle de finanças pessoais. Gerencie receitas, 
 - **Cartões de Crédito**: Gerencie faturas e compras no cartão
 - **Lançamentos Recorrentes**: Crie parcelas automáticas para meses futuros
 - **Controle de Pagamentos**: Marque despesas como pagas com checkbox visual
+- **Edição de Lançamentos**: Edite qualquer lançamento existente com facilidade
 
 ### 📈 Visualização
 - **Dashboard Anual**: Visualize receitas e despesas mês a mês
 - **Resumo Mensal**: Acompanhe o saldo do mês corrente em tempo real
 - **Lançamentos do Mês**: Exibe apenas transações do mês atual nas abas principais
+- **Ordenação por Data**: Lançamentos organizados cronologicamente (mais antigo primeiro)
 - **Filtro por Ano**: Navegue entre diferentes anos
 - **Consultas Avançadas**: Filtre lançamentos por período, categoria e tipo com somatórios detalhados
 

@@ -170,7 +170,9 @@ const state = {
     tabTypes: [], // Array de tab_keys selecionados (vazio = todos)
     category: ''
   },
-  queryResults: null // Resultados da última consulta
+  queryResults: null, // Resultados da última consulta
+  // Estado de edição
+  editingTransaction: null // { id, tabKey } quando estiver editando
 };
 
 // =====================================================
@@ -306,6 +308,34 @@ async function updateTransactionPaid(id, isPaid) {
     console.error('Erro inesperado ao atualizar:', error);
     showToast('Erro ao atualizar o lançamento', 'error');
     return false;
+  }
+}
+
+async function updateTransaction(id, transaction) {
+  if (!supabase) {
+    showToast('Erro: Supabase não configurado', 'error');
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .update(transaction)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Erro ao atualizar:', error);
+      showToast(`Erro ao atualizar: ${error.message}`, 'error');
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erro inesperado ao atualizar:', error);
+    showToast('Erro ao atualizar o lançamento', 'error');
+    return null;
   }
 }
 
@@ -561,8 +591,8 @@ function executeQuery(filters) {
   // Calcular saldo
   results.totals.saldo = results.totals.totalReceitas - results.totals.totalDespesas;
   
-  // Ordenar por data (mais recente primeiro)
-  results.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Ordenar por data crescente (mais antiga primeiro)
+  results.transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
   
   return results;
 }
@@ -630,79 +660,97 @@ function renderTab(tabKey) {
   const tabConfig = tabsConfig.find(t => t.key === tabKey);
   if (!tabConfig) return;
   
-  // Filtra apenas transações do mês atual
+  // Filtra apenas transações do mês atual e ordena por data crescente
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
   const allTransactions = state.transactions[tabKey] || [];
-  const transactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth);
+  const transactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
   
   const isLoading = state.loading[tabKey];
   const categories = defaultCategories[tabKey] || [];
   
+  // Verifica se está editando uma transação desta aba
+  const isEditing = state.editingTransaction?.tabKey === tabKey;
+  const editingData = isEditing 
+    ? allTransactions.find(t => t.id === state.editingTransaction.id) 
+    : null;
+  
   const html = `
-    <section class="form-section">
-      <h3 class="form-section__title">${tabConfig.icon} Novo Lançamento</h3>
-      <form class="form" id="form-${tabKey}" data-tab="${tabKey}">
+    <section class="form-section ${isEditing ? 'form-section--editing' : ''}">
+      <h3 class="form-section__title">
+        ${isEditing ? '✏️ Editar Lançamento' : `${tabConfig.icon} Novo Lançamento`}
+      </h3>
+      <form class="form" id="form-${tabKey}" data-tab="${tabKey}" data-editing-id="${isEditing ? editingData?.id : ''}">
         <div class="form-group">
           <label class="form-label" for="date-${tabKey}">Data</label>
-          <input type="date" class="form-input" id="date-${tabKey}" name="date" value="${getTodayDate()}" required>
+          <input type="date" class="form-input" id="date-${tabKey}" name="date" value="${isEditing ? editingData?.date : getTodayDate()}" required>
         </div>
         
         <div class="form-group" style="flex: 2;">
           <label class="form-label" for="description-${tabKey}">Descrição</label>
-          <input type="text" class="form-input" id="description-${tabKey}" name="description" placeholder="${tabConfig.placeholder}" required maxlength="200">
+          <input type="text" class="form-input" id="description-${tabKey}" name="description" placeholder="${tabConfig.placeholder}" value="${isEditing ? (editingData?.description || '').replace(/"/g, '&quot;') : ''}" required maxlength="200">
         </div>
         
         <div class="form-group">
           <label class="form-label" for="category-${tabKey}">Categoria</label>
           <select class="form-select" id="category-${tabKey}" name="category">
             <option value="">Selecione...</option>
-            ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+            ${categories.map(cat => `<option value="${cat}" ${isEditing && editingData?.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
           </select>
         </div>
         
         <div class="form-group">
           <label class="form-label" for="amount-${tabKey}">Valor (R$)</label>
-          <input type="number" class="form-input" id="amount-${tabKey}" name="amount" placeholder="0,00" step="0.01" min="0.01" required>
+          <input type="number" class="form-input" id="amount-${tabKey}" name="amount" placeholder="0,00" step="0.01" min="0.01" value="${isEditing ? editingData?.amount : ''}" required>
         </div>
         
-        <!-- Checkbox Repetir (ao lado do valor) -->
-        <div class="form-group form-group--checkbox">
-          <label class="checkbox-label">
-            <input type="checkbox" name="is_recurring" id="recurring-${tabKey}" class="checkbox-input">
-            <span class="checkbox-custom"></span>
-            <span>🔁 Repetir</span>
-          </label>
+        <!-- Checkbox Repetir (ao lado do valor) - oculto no modo edição -->
+        ${!isEditing ? `
+          <div class="form-group form-group--checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" name="is_recurring" id="recurring-${tabKey}" class="checkbox-input">
+              <span class="checkbox-custom"></span>
+              <span>🔁 Repetir</span>
+            </label>
+          </div>
+        ` : ''}
+        
+        <div class="form-group form-group--buttons">
+          ${isEditing ? `
+            <button type="button" class="btn btn--secondary" id="btn-cancel-edit">✖️ Cancelar</button>
+            <button type="submit" class="btn btn--primary">💾 Salvar</button>
+          ` : `
+            <button type="submit" class="btn btn--primary">➕ Adicionar</button>
+          `}
         </div>
         
-        <div class="form-group">
-          <button type="submit" class="btn btn--primary">➕ Adicionar</button>
-        </div>
-        
-        <!-- Opções de Recorrência (linha inteira, expande quando checkbox marcado) -->
-        <div class="form-group form-group--full recurrence-options" id="recurrence-options-${tabKey}" style="display: none;">
-          <div class="recurrence-section">
-            <div class="recurrence-row">
-              <select class="form-select recurrence-select" name="recurrence_type" id="recurrence-type-${tabKey}">
-                <option value="fixed">Por X meses</option>
-                <option value="monthly">Todos os meses (12x)</option>
-              </select>
-              
-              <div class="recurrence-count" id="recurrence-count-wrapper-${tabKey}">
-                <label class="form-label">Repetir por</label>
-                <div class="recurrence-count-input">
-                  <input type="number" class="form-input" name="recurrence_count" id="recurrence-count-${tabKey}" value="2" min="2" max="60">
-                  <span>meses</span>
+        <!-- Opções de Recorrência (linha inteira, expande quando checkbox marcado) - oculto no modo edição -->
+        ${!isEditing ? `
+          <div class="form-group form-group--full recurrence-options" id="recurrence-options-${tabKey}" style="display: none;">
+            <div class="recurrence-section">
+              <div class="recurrence-row">
+                <select class="form-select recurrence-select" name="recurrence_type" id="recurrence-type-${tabKey}">
+                  <option value="fixed">Por X meses</option>
+                  <option value="monthly">Todos os meses (12x)</option>
+                </select>
+                
+                <div class="recurrence-count" id="recurrence-count-wrapper-${tabKey}">
+                  <label class="form-label">Repetir por</label>
+                  <div class="recurrence-count-input">
+                    <input type="number" class="form-input" name="recurrence_count" id="recurrence-count-${tabKey}" value="2" min="2" max="60">
+                    <span>meses</span>
+                  </div>
                 </div>
               </div>
+              
+              <p class="recurrence-info" id="recurrence-info-${tabKey}">
+                📅 Serão criadas <strong>2 parcelas</strong> nos próximos meses
+              </p>
             </div>
-            
-            <p class="recurrence-info" id="recurrence-info-${tabKey}">
-              📅 Serão criadas <strong>2 parcelas</strong> nos próximos meses
-            </p>
           </div>
-        </div>
+        ` : ''}
       </form>
     </section>
     
@@ -723,13 +771,23 @@ function renderTab(tabKey) {
     btn.addEventListener('click', handleDeleteClick);
   });
   
+  // Event listeners para botão de editar
+  dom.tabContent.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', handleEditClick);
+  });
+  
+  // Event listener para cancelar edição
+  document.getElementById('btn-cancel-edit')?.addEventListener('click', handleCancelEdit);
+  
   // Event listeners para checkbox "Pago"
   dom.tabContent.querySelectorAll('[data-action="toggle-paid"]').forEach(checkbox => {
     checkbox.addEventListener('change', handleTogglePaid);
   });
   
-  // Event listeners de recorrência
-  setupRecurrenceListeners(tabKey);
+  // Event listeners de recorrência (só se não estiver editando)
+  if (!state.editingTransaction) {
+    setupRecurrenceListeners(tabKey);
+  }
 }
 
 function setupRecurrenceListeners(tabKey) {
@@ -825,6 +883,7 @@ function renderTransactionsList(transactions, tabConfig) {
             </div>
           ` : ''}
           <div class="item-row__actions">
+            <button class="btn btn--edit btn--small" data-action="edit" data-id="${t.id}" data-tab="${tabConfig.key}" title="Editar">✏️</button>
             <button class="btn btn--danger btn--small" data-action="delete" data-id="${t.id}" data-tab="${tabConfig.key}" title="Remover">🗑️</button>
           </div>
         </div>
@@ -1370,13 +1429,14 @@ async function handleFormSubmit(event) {
   
   const form = event.target;
   const tabKey = form.dataset.tab;
+  const editingId = form.dataset.editingId ? parseInt(form.dataset.editingId) : null;
+  const isEditing = !!editingId;
   const submitBtn = form.querySelector('button[type="submit"]');
   
   const formData = new FormData(form);
   
   // Dados base da transação
   const baseTransaction = {
-    tab_key: tabKey,
     date: formData.get('date'),
     description: formData.get('description').trim(),
     category: formData.get('category') || null,
@@ -1394,63 +1454,112 @@ async function handleFormSubmit(event) {
     return;
   }
   
-  // Verificar recorrência
-  const isRecurring = formData.get('is_recurring') === 'on';
-  const recurrenceType = formData.get('recurrence_type');
-  const recurrenceCount = parseInt(formData.get('recurrence_count') || 2);
-  
   submitBtn.disabled = true;
   submitBtn.textContent = '⏳ Salvando...';
   
-  let results = null;
+  let success = false;
   
-  if (isRecurring) {
-    // Criar múltiplas transações
-    const count = recurrenceType === 'monthly' ? 12 : recurrenceCount;
-    const dates = generateMonthlyDates(baseTransaction.date, count);
-    
-    const transactions = dates.map((date, index) => ({
-      ...baseTransaction,
-      date,
-      description: `${baseTransaction.description} (${index + 1}/${count})`
-    }));
-    
-    results = await insertMultipleTransactions(transactions);
-    
-    if (results) {
-      // Adiciona todas ao estado local
-      state.transactions[tabKey] = [...results, ...state.transactions[tabKey]];
-      state.transactions[tabKey].sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      showToast(`${count} lançamentos criados com sucesso!`, 'success');
-    }
-  } else {
-    // Criar transação única
-    const result = await insertTransaction(baseTransaction);
+  if (isEditing) {
+    // Modo edição - atualizar transação existente
+    const result = await updateTransaction(editingId, baseTransaction);
     
     if (result) {
-      state.transactions[tabKey].unshift(result);
-      showToast('Lançamento adicionado com sucesso!', 'success');
+      // Atualiza no estado local
+      const index = state.transactions[tabKey].findIndex(t => t.id === editingId);
+      if (index !== -1) {
+        state.transactions[tabKey][index] = { ...state.transactions[tabKey][index], ...result };
+      }
+      
+      // Limpa o estado de edição
+      state.editingTransaction = null;
+      
+      showToast('Lançamento atualizado com sucesso!', 'success');
+      success = true;
     }
+  } else {
+    // Modo criação
+    // Verificar recorrência
+    const isRecurring = formData.get('is_recurring') === 'on';
+    const recurrenceType = formData.get('recurrence_type');
+    const recurrenceCount = parseInt(formData.get('recurrence_count') || 2);
     
-    results = result ? [result] : null;
+    // Adiciona tab_key para novas transações
+    baseTransaction.tab_key = tabKey;
+    
+    if (isRecurring) {
+      // Criar múltiplas transações
+      const count = recurrenceType === 'monthly' ? 12 : recurrenceCount;
+      const dates = generateMonthlyDates(baseTransaction.date, count);
+      
+      const transactions = dates.map((date, index) => ({
+        ...baseTransaction,
+        date,
+        description: `${baseTransaction.description} (${index + 1}/${count})`
+      }));
+      
+      const results = await insertMultipleTransactions(transactions);
+      
+      if (results) {
+        // Adiciona todas ao estado local e ordena por data crescente
+        state.transactions[tabKey] = [...results, ...state.transactions[tabKey]];
+        state.transactions[tabKey].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        showToast(`${count} lançamentos criados com sucesso!`, 'success');
+        success = true;
+      }
+    } else {
+      // Criar transação única
+      const result = await insertTransaction(baseTransaction);
+      
+      if (result) {
+        state.transactions[tabKey].unshift(result);
+        showToast('Lançamento adicionado com sucesso!', 'success');
+        success = true;
+      }
+    }
   }
   
   submitBtn.disabled = false;
-  submitBtn.textContent = '➕ Adicionar';
+  submitBtn.textContent = isEditing ? '💾 Salvar' : '➕ Adicionar';
   
-  if (results) {
-    // Limpar formulário
-    form.querySelector('[name="description"]').value = '';
-    form.querySelector('[name="category"]').value = '';
-    form.querySelector('[name="amount"]').value = '';
-    form.querySelector('[name="is_recurring"]').checked = false;
-    document.getElementById(`recurrence-options-${tabKey}`).style.display = 'none';
-    
+  if (success) {
     invalidateDashboardCache();
     renderTab(tabKey);
     renderSummary();
   }
+}
+
+function handleEditClick(event) {
+  const button = event.currentTarget;
+  const id = parseInt(button.dataset.id);
+  const tabKey = button.dataset.tab;
+  
+  // Define o estado de edição
+  state.editingTransaction = { id, tabKey };
+  
+  // Re-renderiza a aba para mostrar o formulário preenchido
+  renderTab(tabKey);
+  
+  // Foca no campo de descrição
+  setTimeout(() => {
+    document.getElementById(`description-${tabKey}`)?.focus();
+  }, 100);
+  
+  showToast('Editando lançamento...', 'info', 2000);
+}
+
+function handleCancelEdit() {
+  const tabKey = state.editingTransaction?.tabKey;
+  
+  // Limpa o estado de edição
+  state.editingTransaction = null;
+  
+  // Re-renderiza a aba
+  if (tabKey) {
+    renderTab(tabKey);
+  }
+  
+  showToast('Edição cancelada', 'info', 2000);
 }
 
 async function handleDeleteClick(event) {

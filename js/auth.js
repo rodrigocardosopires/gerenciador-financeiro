@@ -4,47 +4,8 @@
  * =====================================================
  */
 
-import { config } from './config.js';
-
-const { SUPABASE_URL, SUPABASE_ANON_KEY } = config;
-
-// =====================================================
-// 1. INICIALIZAÇÃO DO SUPABASE
-// =====================================================
-
-let supabase = null;
-
-function initSupabase() {
-  if (typeof window.supabase === 'undefined') {
-    console.error('❌ SDK do Supabase não encontrado!');
-    return null;
-  }
-  
-  if (!SUPABASE_URL || !SUPABASE_URL.includes('supabase.co')) {
-    console.error('⚠️ Configure o arquivo js/config.js com suas credenciais do Supabase');
-    return null;
-  }
-  
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 100) {
-    console.error('⚠️ SUPABASE_ANON_KEY inválida');
-    return null;
-  }
-  
-  try {
-    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        storageKey: 'gerenciador-financeiro-auth',
-      }
-    });
-  } catch (error) {
-    console.error('❌ Erro ao criar cliente Supabase:', error);
-    return null;
-  }
-}
-
-supabase = initSupabase();
+// Importa cliente Supabase do módulo centralizado
+import { supabase } from './supabaseClient.js';
 
 // =====================================================
 // 2. THEME MANAGEMENT

@@ -493,6 +493,31 @@ a:hover {
   gap: var(--spacing-sm);
 }
 
+/* Form Section em modo de edição */
+.form-section--editing {
+  background: var(--color-info-light);
+  border-color: var(--color-info);
+}
+
+.form-section--editing .form-section__title {
+  color: var(--color-info);
+}
+
+/* Grupo de botões do formulário (modo edição) */
+.form-group--buttons {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-sm);
+  align-items: flex-end;
+  grid-column: span 2;
+}
+
+.form-group--buttons .btn {
+  width: 100px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.85rem;
+}
+
 /* List Section */
 .list-section {
   margin-top: var(--spacing-xl);
@@ -969,16 +994,23 @@ a:hover {
   border: 1px solid var(--color-border);
   padding: var(--spacing-lg);
   margin-top: var(--spacing-md);
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .summary-item--balance .summary-item__label {
   font-weight: 600;
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summary-item--balance .summary-item__value {
   font-size: var(--font-size-2xl);
+  text-align: center;
 }
 
 .summary-item--balance.positive .summary-item__value {
@@ -1040,6 +1072,18 @@ a:hover {
 .btn--secondary:hover:not(:disabled) {
   background: var(--color-bg-card-hover);
   border-color: var(--color-text-muted);
+}
+
+.btn--edit {
+  background: var(--color-info-light);
+  color: var(--color-info);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.btn--edit:hover:not(:disabled) {
+  background: var(--color-info);
+  color: var(--color-text-inverse);
 }
 
 .btn--danger {
@@ -1650,6 +1694,67 @@ a:hover {
   .summary-item__value {
     align-self: flex-end;
   }
+  
+  /* User Menu Responsive */
+  .user-name {
+    display: none;
+  }
+  
+  .user-info {
+    padding: var(--spacing-xs);
+  }
+  
+  /* Query Responsive */
+  .query-form__row {
+    grid-template-columns: 1fr;
+  }
+  
+  .query-types {
+    flex-direction: column;
+  }
+  
+  .query-type-checkbox {
+    justify-content: flex-start;
+  }
+  
+  .query-summary__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .items-header--query {
+    display: none;
+  }
+  
+  .item-row--query {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: var(--spacing-xs);
+  }
+  
+  .item-row--query .item-row__date {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  
+  .item-row--query .item-row__type {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+  
+  .item-row--query .item-row__description {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  
+  .item-row--query .item-row__category {
+    display: none;
+  }
+  
+  .item-row--query .item-row__amount {
+    grid-column: 2;
+    grid-row: 3;
+  }
 }
 
 @media (max-width: 600px) {
@@ -2147,15 +2252,6 @@ a:hover {
   color: white;
 }
 
-@media (max-width: 768px) {
-  .user-name {
-    display: none;
-  }
-  
-  .user-info {
-    padding: var(--spacing-xs);
-  }
-}
 
 /* =====================================================
    20. CONSULTAS (QUERY) PAGE
@@ -2553,58 +2649,6 @@ a:hover {
   }
 }
 
-@media (max-width: 768px) {
-  .query-form__row {
-    grid-template-columns: 1fr;
-  }
-  
-  .query-types {
-    flex-direction: column;
-  }
-  
-  .query-type-checkbox {
-    justify-content: flex-start;
-  }
-  
-  .query-summary__grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .items-header--query {
-    display: none;
-  }
-  
-  .item-row--query {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto auto;
-    gap: var(--spacing-xs);
-  }
-  
-  .item-row--query .item-row__date {
-    grid-column: 1;
-    grid-row: 3;
-  }
-  
-  .item-row--query .item-row__type {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end;
-  }
-  
-  .item-row--query .item-row__description {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  
-  .item-row--query .item-row__category {
-    display: none;
-  }
-  
-  .item-row--query .item-row__amount {
-    grid-column: 2;
-    grid-row: 3;
-  }
-}
 
 @media (max-width: 600px) {
   .query-form__actions {
