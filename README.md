@@ -1,6 +1,6 @@
 # 💰 Gerenciador Financeiro
 
-Aplicação web moderna para controle de finanças pessoais. Gerencie receitas, contas fixas/variáveis e cartões de crédito com dashboard anual interativo. Suporte a lançamentos recorrentes, tema claro/escuro e interface responsiva.
+Aplicação web moderna para controle de finanças pessoais. Gerencie receitas, contas fixas/variáveis e cartões de crédito com dashboard anual interativo. Suporte a lançamentos recorrentes, tema claro/escuro e interface responsiva. 
 
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
