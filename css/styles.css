@@ -1829,9 +1829,8 @@ a:hover {
   .tab__label {
     font-size: var(--font-size-xs);
   }
-}
-
-@media (max-width: 900px) {
+  
+  /* Dashboard em telas médias */
   .calendar-grid {
     grid-template-columns: repeat(2, 1fr);
   }
