@@ -11,6 +11,7 @@
 import { supabase } from './supabaseClient.js';
 
 const TABLE_NAME = 'transactions';
+const CARDS_TABLE_NAME = 'credit_cards';
 
 // Variável global para armazenar o usuário atual
 let currentUser = null;
@@ -172,7 +173,11 @@ const state = {
   },
   queryResults: null, // Resultados da última consulta
   // Estado de edição
-  editingTransaction: null // { id, tabKey } quando estiver editando
+  editingTransaction: null, // { id, tabKey } quando estiver editando
+  // Estado dos cartões de crédito
+  creditCards: [], // Lista de cartões cadastrados
+  activeCard: null, // ID do cartão ativo (null = todos)
+  editingCard: null // Cartão sendo editado
 };
 
 // =====================================================
@@ -336,6 +341,127 @@ async function updateTransaction(id, transaction) {
     console.error('Erro inesperado ao atualizar:', error);
     showToast('Erro ao atualizar o lançamento', 'error');
     return null;
+  }
+}
+
+// =====================================================
+// 5.1 CREDIT CARDS DATA ACCESS LAYER
+// =====================================================
+
+async function fetchCreditCards() {
+  if (!supabase) {
+    console.error('Supabase não configurado');
+    return [];
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from(CARDS_TABLE_NAME)
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error('Erro ao buscar cartões:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Erro inesperado ao buscar cartões:', error);
+    return [];
+  }
+}
+
+async function insertCreditCard(card) {
+  if (!supabase) {
+    showToast('Erro: Supabase não configurado', 'error');
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from(CARDS_TABLE_NAME)
+      .insert([card])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Erro ao inserir cartão:', error);
+      showToast(`Erro ao salvar cartão: ${error.message}`, 'error');
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erro inesperado ao inserir cartão:', error);
+    showToast('Erro ao salvar o cartão', 'error');
+    return null;
+  }
+}
+
+async function updateCreditCard(id, card) {
+  if (!supabase) {
+    showToast('Erro: Supabase não configurado', 'error');
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from(CARDS_TABLE_NAME)
+      .update(card)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Erro ao atualizar cartão:', error);
+      showToast(`Erro ao atualizar cartão: ${error.message}`, 'error');
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erro inesperado ao atualizar cartão:', error);
+    showToast('Erro ao atualizar o cartão', 'error');
+    return null;
+  }
+}
+
+async function deleteCreditCard(id) {
+  if (!supabase) {
+    showToast('Erro: Supabase não configurado', 'error');
+    return false;
+  }
+  
+  try {
+    // Primeiro, verificar se há transações vinculadas
+    const { data: transactions } = await supabase
+      .from(TABLE_NAME)
+      .select('id')
+      .eq('card_id', id)
+      .limit(1);
+    
+    if (transactions && transactions.length > 0) {
+      showToast('Não é possível excluir: existem lançamentos vinculados a este cartão', 'warning');
+      return false;
+    }
+    
+    const { error } = await supabase
+      .from(CARDS_TABLE_NAME)
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Erro ao remover cartão:', error);
+      showToast(`Erro ao remover cartão: ${error.message}`, 'error');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro inesperado ao remover cartão:', error);
+    showToast('Erro ao remover o cartão', 'error');
+    return false;
   }
 }
 
@@ -660,6 +786,12 @@ function renderTab(tabKey) {
   const tabConfig = tabsConfig.find(t => t.key === tabKey);
   if (!tabConfig) return;
   
+  // Se for cartões de crédito, usa renderização específica com sub-abas
+  if (tabKey === 'cartoes_credito') {
+    renderCartoesCredito();
+    return;
+  }
+  
   // Filtra apenas transações do mês atual e ordena por data crescente
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -899,6 +1031,513 @@ function renderLoading() {
       <p>Carregando dados...</p>
     </div>
   `;
+}
+
+// =====================================================
+// 7.2 RENDER CARTÕES DE CRÉDITO - Com Sub-abas
+// =====================================================
+
+function renderCartoesCredito() {
+  const tabConfig = tabsConfig.find(t => t.key === 'cartoes_credito');
+  const isLoading = state.loading.cartoes_credito;
+  // Ordena cartões alfabeticamente
+  const cards = [...(state.creditCards || [])].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const activeCardId = state.activeCard;
+  const editingCard = state.editingCard;
+  
+  // Filtra transações do mês atual
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const allTransactions = state.transactions.cartoes_credito || [];
+  
+  // Filtra por cartão ativo (se houver) e pelo mês atual
+  let filteredTransactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth);
+  if (activeCardId !== null) {
+    filteredTransactions = filteredTransactions.filter(t => t.card_id === activeCardId);
+  }
+  filteredTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  // Calcula totais por cartão
+  const cardTotals = {};
+  let totalGeral = 0;
+  
+  cards.forEach(card => {
+    const cardTransactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth)
+      .filter(t => t.card_id === card.id);
+    const total = cardTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    cardTotals[card.id] = total;
+    totalGeral += total;
+  });
+  
+  // Transações sem cartão associado
+  const orphanTransactions = filterTransactionsByMonth(allTransactions, currentYear, currentMonth)
+    .filter(t => !t.card_id);
+  const orphanTotal = orphanTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+  totalGeral += orphanTotal;
+  
+  const categories = defaultCategories.cartoes_credito || [];
+  
+  // Verifica se está editando uma transação
+  const isEditingTransaction = state.editingTransaction?.tabKey === 'cartoes_credito';
+  const editingTransactionData = isEditingTransaction 
+    ? allTransactions.find(t => t.id === state.editingTransaction.id) 
+    : null;
+  
+  const html = `
+    <!-- Sub-abas de Cartões -->
+    <div class="card-tabs-container">
+      <div class="card-tabs">
+        <button class="card-tab ${activeCardId === null ? 'card-tab--active' : ''}" data-card-id="all">
+          📋 Todos
+          <span class="card-tab__total">${formatCurrency(totalGeral)}</span>
+        </button>
+        ${cards.map(card => `
+          <button class="card-tab ${activeCardId === card.id ? 'card-tab--active' : ''}" data-card-id="${card.id}">
+            💳 ${card.name}
+            <span class="card-tab__total">${formatCurrency(cardTotals[card.id] || 0)}</span>
+          </button>
+        `).join('')}
+        <button class="card-tab card-tab--add" data-action="add-card" title="Adicionar Cartão">
+          ➕
+        </button>
+      </div>
+      
+      <!-- Botões de gerenciamento do cartão ativo -->
+      ${activeCardId !== null ? `
+        <div class="card-actions">
+          <button class="btn btn--secondary btn--small" data-action="edit-card" data-card-id="${activeCardId}">
+            ✏️ Editar Cartão
+          </button>
+          <button class="btn btn--danger btn--small" data-action="delete-card" data-card-id="${activeCardId}">
+            🗑️ Excluir Cartão
+          </button>
+        </div>
+      ` : ''}
+    </div>
+    
+    <!-- Modal/Form para adicionar/editar cartão -->
+    ${editingCard !== null ? `
+      <div class="card-form-overlay">
+        <div class="card-form">
+          <h4 class="card-form__title">${editingCard.id ? '✏️ Editar Cartão' : '➕ Novo Cartão'}</h4>
+          <form id="form-card" data-card-id="${editingCard.id || ''}">
+            <div class="form-group">
+              <label class="form-label" for="card-name">Nome do Cartão</label>
+              <input type="text" class="form-input" id="card-name" name="name" placeholder="Ex.: Nubank, Inter, C6..." value="${editingCard.name || ''}" required maxlength="50">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="card-limit">Limite (opcional)</label>
+              <input type="number" class="form-input" id="card-limit" name="credit_limit" placeholder="0,00" step="0.01" min="0" value="${editingCard.credit_limit || ''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="card-closing-day">Dia de Fechamento</label>
+              <input type="number" class="form-input" id="card-closing-day" name="closing_day" placeholder="1-31" min="1" max="31" value="${editingCard.closing_day || ''}">
+            </div>
+            <div class="form-group form-group--buttons">
+              <button type="button" class="btn btn--secondary" id="btn-cancel-card">✖️ Cancelar</button>
+              <button type="submit" class="btn btn--primary">💾 Salvar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    ` : ''}
+    
+    <!-- Formulário de Lançamento -->
+    <section class="form-section ${isEditingTransaction ? 'form-section--editing' : ''}">
+      <h3 class="form-section__title">
+        ${isEditingTransaction ? '✏️ Editar Lançamento' : `${tabConfig.icon} Novo Lançamento`}
+      </h3>
+      <form class="form" id="form-cartoes_credito" data-tab="cartoes_credito" data-editing-id="${isEditingTransaction ? editingTransactionData?.id : ''}">
+        ${cards.length > 0 ? `
+          <div class="form-group">
+            <label class="form-label" for="card-select">Cartão</label>
+            <select class="form-select" id="card-select" name="card_id" required>
+              <option value="">Selecione o cartão...</option>
+              ${cards.map(card => `
+                <option value="${card.id}" ${(isEditingTransaction && editingTransactionData?.card_id === card.id) || (!isEditingTransaction && activeCardId === card.id) ? 'selected' : ''}>
+                  ${card.name}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        ` : `
+          <div class="form-group form-group--full">
+            <div class="card-hint">
+              💡 <strong>Dica:</strong> Adicione um cartão primeiro clicando no botão ➕ acima.
+            </div>
+          </div>
+        `}
+        
+        <div class="form-group">
+          <label class="form-label" for="date-cartoes_credito">Data</label>
+          <input type="date" class="form-input" id="date-cartoes_credito" name="date" value="${isEditingTransaction ? editingTransactionData?.date : getTodayDate()}" required>
+        </div>
+        
+        <div class="form-group" style="flex: 2;">
+          <label class="form-label" for="description-cartoes_credito">Descrição</label>
+          <input type="text" class="form-input" id="description-cartoes_credito" name="description" placeholder="${tabConfig.placeholder}" value="${isEditingTransaction ? (editingTransactionData?.description || '').replace(/"/g, '&quot;') : ''}" required maxlength="200" ${cards.length === 0 ? 'disabled' : ''}>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="category-cartoes_credito">Categoria</label>
+          <select class="form-select" id="category-cartoes_credito" name="category" ${cards.length === 0 ? 'disabled' : ''}>
+            <option value="">Selecione...</option>
+            ${categories.map(cat => `<option value="${cat}" ${isEditingTransaction && editingTransactionData?.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="amount-cartoes_credito">Valor (R$)</label>
+          <input type="number" class="form-input" id="amount-cartoes_credito" name="amount" placeholder="0,00" step="0.01" min="0.01" value="${isEditingTransaction ? editingTransactionData?.amount : ''}" required ${cards.length === 0 ? 'disabled' : ''}>
+        </div>
+        
+        <!-- Checkbox Repetir - oculto no modo edição -->
+        ${!isEditingTransaction && cards.length > 0 ? `
+          <div class="form-group form-group--checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" name="is_recurring" id="recurring-cartoes_credito" class="checkbox-input">
+              <span class="checkbox-custom"></span>
+              <span>🔁 Repetir</span>
+            </label>
+          </div>
+        ` : ''}
+        
+        <div class="form-group form-group--buttons">
+          ${isEditingTransaction ? `
+            <button type="button" class="btn btn--secondary" id="btn-cancel-edit">✖️ Cancelar</button>
+            <button type="submit" class="btn btn--primary">💾 Salvar</button>
+          ` : `
+            <button type="submit" class="btn btn--primary" ${cards.length === 0 ? 'disabled' : ''}>➕ Adicionar</button>
+          `}
+        </div>
+        
+        <!-- Opções de Recorrência -->
+        ${!isEditingTransaction && cards.length > 0 ? `
+          <div class="form-group form-group--full recurrence-options" id="recurrence-options-cartoes_credito" style="display: none;">
+            <div class="recurrence-section">
+              <div class="recurrence-row">
+                <select class="form-select recurrence-select" name="recurrence_type" id="recurrence-type-cartoes_credito">
+                  <option value="fixed">Por X meses</option>
+                  <option value="monthly">Todos os meses (12x)</option>
+                </select>
+                
+                <div class="recurrence-count" id="recurrence-count-wrapper-cartoes_credito">
+                  <label class="form-label">Repetir por</label>
+                  <div class="recurrence-count-input">
+                    <input type="number" class="form-input" name="recurrence_count" id="recurrence-count-cartoes_credito" value="2" min="2" max="60">
+                    <span>meses</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p class="recurrence-info" id="recurrence-info-cartoes_credito">
+                📅 Serão criadas <strong>2 parcelas</strong> nos próximos meses
+              </p>
+            </div>
+          </div>
+        ` : ''}
+      </form>
+    </section>
+    
+    <!-- Lista de Lançamentos -->
+    <section class="list-section">
+      <h3 class="list-section__title">
+        📋 Lançamentos de ${MONTH_NAMES[currentMonth]}
+        ${activeCardId !== null ? ` - ${cards.find(c => c.id === activeCardId)?.name || ''}` : ''}
+        <span class="list-section__count">(${filteredTransactions.length} ${filteredTransactions.length === 1 ? 'item' : 'itens'})</span>
+      </h3>
+      ${isLoading ? renderLoading() : renderCartoesTransactionsList(filteredTransactions, cards)}
+    </section>
+  `;
+  
+  dom.tabContent.innerHTML = html;
+  
+  // Event listeners
+  setupCartoesEventListeners();
+}
+
+function renderCartoesTransactionsList(transactions, cards) {
+  if (transactions.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-state__icon">📭</div>
+        <p class="empty-state__text">Nenhum lançamento encontrado.<br>Adicione seu primeiro lançamento acima!</p>
+      </div>
+    `;
+  }
+  
+  // Cria mapa de cartões para lookup rápido
+  const cardsMap = {};
+  cards.forEach(c => cardsMap[c.id] = c.name);
+  
+  return `
+    <div class="items-header items-header--cards">
+      <span>Data</span>
+      <span>Cartão</span>
+      <span>Descrição</span>
+      <span>Categoria</span>
+      <span>Valor</span>
+      <span>Pago?</span>
+      <span>Ações</span>
+    </div>
+    <div class="items-list">
+      ${transactions.map(t => `
+        <div class="item-row item-row--cards ${t.is_paid ? 'item-row--paid' : ''}" data-id="${t.id}">
+          <span class="item-row__date">${formatDate(t.date)}</span>
+          <span class="item-row__card">${cardsMap[t.card_id] || '-'}</span>
+          <span class="item-row__description" title="${t.description}">${t.description}</span>
+          <span class="item-row__category">${t.category || '-'}</span>
+          <span class="item-row__amount item-row__amount--expense">${formatCurrency(t.amount)}</span>
+          <div class="item-row__paid">
+            <label class="paid-checkbox">
+              <input type="checkbox" 
+                class="paid-checkbox__input" 
+                data-action="toggle-paid" 
+                data-id="${t.id}" 
+                data-tab="cartoes_credito"
+                ${t.is_paid ? 'checked' : ''}>
+              <span class="paid-checkbox__box"></span>
+            </label>
+          </div>
+          <div class="item-row__actions">
+            <button class="btn btn--edit btn--small" data-action="edit" data-id="${t.id}" data-tab="cartoes_credito" title="Editar">✏️</button>
+            <button class="btn btn--danger btn--small" data-action="delete" data-id="${t.id}" data-tab="cartoes_credito" title="Remover">🗑️</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function setupCartoesEventListeners() {
+  // Sub-abas de cartões
+  document.querySelectorAll('.card-tab:not(.card-tab--add)').forEach(tab => {
+    tab.addEventListener('click', handleCardTabClick);
+  });
+  
+  // Botão adicionar cartão
+  document.querySelector('[data-action="add-card"]')?.addEventListener('click', handleAddCardClick);
+  
+  // Botões editar/excluir cartão
+  document.querySelector('[data-action="edit-card"]')?.addEventListener('click', handleEditCardClick);
+  document.querySelector('[data-action="delete-card"]')?.addEventListener('click', handleDeleteCardClick);
+  
+  // Formulário de cartão
+  document.getElementById('form-card')?.addEventListener('submit', handleCardFormSubmit);
+  document.getElementById('btn-cancel-card')?.addEventListener('click', handleCancelCardForm);
+  
+  // Formulário de lançamento
+  document.getElementById('form-cartoes_credito')?.addEventListener('submit', handleCartoesFormSubmit);
+  document.getElementById('btn-cancel-edit')?.addEventListener('click', handleCancelEdit);
+  
+  // Ações em transações
+  document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', handleDeleteClick);
+  });
+  document.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', handleEditClick);
+  });
+  document.querySelectorAll('[data-action="toggle-paid"]').forEach(checkbox => {
+    checkbox.addEventListener('change', handleTogglePaid);
+  });
+  
+  // Recorrência
+  if (state.creditCards.length > 0) {
+    setupRecurrenceListeners('cartoes_credito');
+  }
+}
+
+function handleCardTabClick(event) {
+  const cardId = event.currentTarget.dataset.cardId;
+  state.activeCard = cardId === 'all' ? null : parseInt(cardId);
+  state.editingTransaction = null;
+  renderCartoesCredito();
+}
+
+function handleAddCardClick() {
+  state.editingCard = { id: null, name: '', credit_limit: '', closing_day: '' };
+  renderCartoesCredito();
+}
+
+function handleEditCardClick(event) {
+  const cardId = parseInt(event.currentTarget.dataset.cardId);
+  const card = state.creditCards.find(c => c.id === cardId);
+  if (card) {
+    state.editingCard = { ...card };
+    renderCartoesCredito();
+  }
+}
+
+async function handleDeleteCardClick(event) {
+  const cardId = parseInt(event.currentTarget.dataset.cardId);
+  const card = state.creditCards.find(c => c.id === cardId);
+  
+  if (!card) return;
+  
+  if (!confirm(`Tem certeza que deseja excluir o cartão "${card.name}"?\n\nObs: Não será possível excluir se houver lançamentos vinculados.`)) {
+    return;
+  }
+  
+  const success = await deleteCreditCard(cardId);
+  
+  if (success) {
+    state.creditCards = state.creditCards.filter(c => c.id !== cardId);
+    state.activeCard = null;
+    invalidateDashboardCache();
+    renderCartoesCredito();
+    renderSummary();
+    showToast('Cartão removido com sucesso!', 'success');
+  }
+}
+
+function handleCancelCardForm() {
+  state.editingCard = null;
+  renderCartoesCredito();
+}
+
+async function handleCardFormSubmit(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  const cardId = form.dataset.cardId ? parseInt(form.dataset.cardId) : null;
+  
+  const cardData = {
+    name: formData.get('name').trim(),
+    credit_limit: formData.get('credit_limit') ? parseFloat(formData.get('credit_limit')) : null,
+    closing_day: formData.get('closing_day') ? parseInt(formData.get('closing_day')) : null
+  };
+  
+  if (!cardData.name) {
+    showToast('Informe o nome do cartão', 'warning');
+    return;
+  }
+  
+  let result;
+  
+  if (cardId) {
+    // Atualizar
+    result = await updateCreditCard(cardId, cardData);
+    if (result) {
+      const index = state.creditCards.findIndex(c => c.id === cardId);
+      if (index !== -1) {
+        state.creditCards[index] = result;
+      }
+      showToast('Cartão atualizado com sucesso!', 'success');
+    }
+  } else {
+    // Criar
+    result = await insertCreditCard(cardData);
+    if (result) {
+      state.creditCards.push(result);
+      state.activeCard = result.id;
+      showToast('Cartão criado com sucesso!', 'success');
+    }
+  }
+  
+  if (result) {
+    state.editingCard = null;
+    renderCartoesCredito();
+  }
+}
+
+async function handleCartoesFormSubmit(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const editingId = form.dataset.editingId ? parseInt(form.dataset.editingId) : null;
+  const isEditing = !!editingId;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  
+  const formData = new FormData(form);
+  
+  const cardId = formData.get('card_id') ? parseInt(formData.get('card_id')) : null;
+  
+  if (!cardId) {
+    showToast('Selecione um cartão', 'warning');
+    return;
+  }
+  
+  const baseTransaction = {
+    date: formData.get('date'),
+    description: formData.get('description').trim(),
+    category: formData.get('category') || null,
+    amount: parseFloat(formData.get('amount')),
+    card_id: cardId
+  };
+  
+  if (!baseTransaction.description) {
+    showToast('Por favor, informe uma descrição', 'warning');
+    return;
+  }
+  
+  if (isNaN(baseTransaction.amount) || baseTransaction.amount <= 0) {
+    showToast('Por favor, informe um valor válido', 'warning');
+    return;
+  }
+  
+  submitBtn.disabled = true;
+  submitBtn.textContent = '⏳ Salvando...';
+  
+  let success = false;
+  
+  if (isEditing) {
+    const result = await updateTransaction(editingId, baseTransaction);
+    
+    if (result) {
+      const index = state.transactions.cartoes_credito.findIndex(t => t.id === editingId);
+      if (index !== -1) {
+        state.transactions.cartoes_credito[index] = { ...state.transactions.cartoes_credito[index], ...result };
+      }
+      state.editingTransaction = null;
+      showToast('Lançamento atualizado com sucesso!', 'success');
+      success = true;
+    }
+  } else {
+    const isRecurring = formData.get('is_recurring') === 'on';
+    const recurrenceType = formData.get('recurrence_type');
+    const recurrenceCount = parseInt(formData.get('recurrence_count') || 2);
+    
+    baseTransaction.tab_key = 'cartoes_credito';
+    
+    if (isRecurring) {
+      const count = recurrenceType === 'monthly' ? 12 : recurrenceCount;
+      const dates = generateMonthlyDates(baseTransaction.date, count);
+      
+      const transactions = dates.map((date, index) => ({
+        ...baseTransaction,
+        date,
+        description: `${baseTransaction.description} (${index + 1}/${count})`
+      }));
+      
+      const results = await insertMultipleTransactions(transactions);
+      
+      if (results) {
+        state.transactions.cartoes_credito = [...results, ...state.transactions.cartoes_credito];
+        state.transactions.cartoes_credito.sort((a, b) => new Date(a.date) - new Date(b.date));
+        showToast(`${count} lançamentos criados com sucesso!`, 'success');
+        success = true;
+      }
+    } else {
+      const result = await insertTransaction(baseTransaction);
+      
+      if (result) {
+        state.transactions.cartoes_credito.unshift(result);
+        showToast('Lançamento adicionado com sucesso!', 'success');
+        success = true;
+      }
+    }
+  }
+  
+  submitBtn.disabled = false;
+  submitBtn.textContent = isEditing ? '💾 Salvar' : '➕ Adicionar';
+  
+  if (success) {
+    invalidateDashboardCache();
+    renderCartoesCredito();
+    renderSummary();
+  }
 }
 
 function renderDashboardAnual() {
@@ -1414,13 +2053,19 @@ async function loadTabData(tabKey) {
 }
 
 async function loadAllData() {
-  const promises = tabsConfig
+  // Carrega cartões de crédito primeiro
+  const cardsPromise = fetchCreditCards().then(cards => {
+    state.creditCards = cards;
+  });
+  
+  // Carrega transações de todas as abas
+  const transactionsPromises = tabsConfig
     .filter(tab => tab.type !== 'dashboard' && tab.type !== 'query')
     .map(tab => fetchTransactions(tab.key).then(data => {
       state.transactions[tab.key] = data;
     }));
 
-  await Promise.all(promises);
+  await Promise.all([cardsPromise, ...transactionsPromises]);
   renderSummary();
 }
 
