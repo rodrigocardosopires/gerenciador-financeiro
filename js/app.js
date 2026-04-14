@@ -495,9 +495,10 @@ function calculateCurrentMonthTotals(stateTransactions) {
   const totals = {};
   let totalReceitas = 0;
   let totalDespesas = 0;
+  let totalPago = 0;
+  let totalAPagar = 0;
   
   tabsConfig.forEach(tab => {
-    // Ignora abas especiais (dashboard e consultas)
     if (tab.type === 'dashboard' || tab.type === 'query') return;
     
     const allTransactions = stateTransactions[tab.key] || [];
@@ -509,6 +510,14 @@ function calculateCurrentMonthTotals(stateTransactions) {
       totalReceitas += total;
     } else {
       totalDespesas += total;
+      monthTransactions.forEach(t => {
+        const amount = parseFloat(t.amount || 0);
+        if (t.is_paid) {
+          totalPago += amount;
+        } else {
+          totalAPagar += amount;
+        }
+      });
     }
   });
   
@@ -516,6 +525,8 @@ function calculateCurrentMonthTotals(stateTransactions) {
     ...totals,
     totalReceitas,
     totalDespesas,
+    totalPago,
+    totalAPagar,
     saldoGeral: totalReceitas - totalDespesas,
     monthName: MONTH_NAMES[currentMonth],
     year: currentYear
@@ -762,6 +773,8 @@ const dom = {
   summaryContasVariaveis: document.getElementById('summary-contas_variaveis'),
   summaryCartoesCredito: document.getElementById('summary-cartoes_credito'),
   summaryTotalDespesas: document.getElementById('summary-total-despesas'),
+  summaryTotalPago: document.getElementById('summary-total-pago'),
+  summaryTotalAPagar: document.getElementById('summary-total-a-pagar'),
   summarySaldo: document.getElementById('summary-saldo'),
   summaryBalanceContainer: document.getElementById('summary-balance-container'),
   btnRefresh: document.getElementById('btn-refresh'),
@@ -1950,6 +1963,8 @@ function renderSummary() {
   if (dom.summaryContasVariaveis) dom.summaryContasVariaveis.textContent = formatCurrency(totals.contas_variaveis || 0);
   if (dom.summaryCartoesCredito) dom.summaryCartoesCredito.textContent = formatCurrency(totals.cartoes_credito || 0);
   if (dom.summaryTotalDespesas) dom.summaryTotalDespesas.textContent = formatCurrency(totals.totalDespesas);
+  if (dom.summaryTotalPago) dom.summaryTotalPago.textContent = formatCurrency(totals.totalPago);
+  if (dom.summaryTotalAPagar) dom.summaryTotalAPagar.textContent = formatCurrency(totals.totalAPagar);
   if (dom.summarySaldo) dom.summarySaldo.textContent = formatCurrency(totals.saldoGeral);
   
   if (dom.summaryBalanceContainer) {
